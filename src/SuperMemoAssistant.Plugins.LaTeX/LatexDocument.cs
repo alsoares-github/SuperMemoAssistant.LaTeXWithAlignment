@@ -38,7 +38,9 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Newtonsoft.Json.Converters;
 using SuperMemoAssistant.Extensions;
+using SuperMemoAssistant.Services;
 
 namespace SuperMemoAssistant.Plugins.LaTeX
 {
@@ -155,9 +157,10 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       var size = GetImageSize(filePath);
 
       // Hack: use this for image id
-      var id = base64Img.Substring(7, 10);
+      //var id = base64Img.Substring(17, 10);
+      var id = latexCode.ToBase64();
 
-      var x = string.Format(CultureInfo.InvariantCulture,
+      var imgTag = string.Format(CultureInfo.InvariantCulture,
                            Config.LaTeXImageTag,
                            size.Width + "em",
                            size.Height + "em",
@@ -165,7 +168,16 @@ namespace SuperMemoAssistant.Plugins.LaTeX
                            latexCode.ToBase64(),
                            id);
 
-      return x;
+      var scriptBase = @"<script type=""text/javascript"">
+                        document.getElementById(""{0}"").src = ""data:image/png;base64,{1}""
+                        </script>";
+
+      var scriptTag = string.Format(CultureInfo.InvariantCulture,
+                                    scriptBase,
+                                    id,
+                                    base64Img);
+
+      return imgTag + scriptTag;
     }
 
     private Size GetImageSize(string filePath)
@@ -259,6 +271,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
                                            tag.SurroundTexWith(latexCode));
 
           ret.Add((success, imgHtmlOrError, originalHtml));
+         
         }
         catch (Exception ex)
         {
