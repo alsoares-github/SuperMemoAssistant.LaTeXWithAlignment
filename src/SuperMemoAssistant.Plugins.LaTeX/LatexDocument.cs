@@ -154,12 +154,18 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
       var size = GetImageSize(filePath);
 
-      return string.Format(CultureInfo.InvariantCulture,
+      // Hack: use this for image id
+      var id = base64Img.Substring(7, 10);
+
+      var x = string.Format(CultureInfo.InvariantCulture,
                            Config.LaTeXImageTag,
-                           size.Width,
-                           size.Height,
+                           size.Width + "em",
+                           size.Height + "em",
                            base64Img,
-                           latexCode.ToBase64());
+                           latexCode.ToBase64(),
+                           id);
+
+      return x;
     }
 
     private Size GetImageSize(string filePath)
