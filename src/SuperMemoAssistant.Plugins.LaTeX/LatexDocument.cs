@@ -160,11 +160,14 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       var numberFormat = (System.Globalization.NumberFormatInfo) CultureInfo.InvariantCulture.NumberFormat.Clone();
       numberFormat.NumberDecimalSeparator = ".";
 
-      double conv = 0.2554 / 1.1;
+      double cmrFactor = 2.1 / 2.32;
+      double mtpro2Factor = 2.0 / 2.32;
+
+      double conv = 0.2554 / 1.1 * mtpro2Factor;
       double depth = double.Parse(v, numberFormat);
       double height = double.Parse(h, numberFormat);
 
-      return (0, (height + depth) * conv, depth * conv);
+      return (0, (height + depth) * conv, (depth+0.1) * conv);
     }
     private string GenerateImgHtml(string filePath,
                                    string latexCode)
@@ -180,8 +183,6 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       var size = GetImageSize(filePath);
       (var w, var h, var v) = GetMetrics(filePath);
 
-      // Hack: use this for image id
-      //var id = base64Img.Substring(17, 10);
       var id = latexCode.ToBase64();
 
       var imgTag = string.Format(CultureInfo.InvariantCulture,
@@ -193,9 +194,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
                            id,
                            v);
 
-      var scriptBase = @"<script type=""text/javascript"">
-                        document.getElementById(""{0}"").src = ""data:image/png;base64,{1}""
-                        </script>";
+      var scriptBase = @"<script class=sma-latex-script type=text/javascript>document.getElementById(""{0}"").src = ""data:image/png;base64,{1}""</script>";
 
       var scriptTag = string.Format(CultureInfo.InvariantCulture,
                                     scriptBase,
@@ -311,6 +310,8 @@ namespace SuperMemoAssistant.Plugins.LaTeX
     {
       HashSet<(string, string)> ret     = new HashSet<(string, string)>();
       var                       matches = LaTeXConst.RE.LaTeXImage.Matches(Selection);
+      var scriptQuery = @"<script\s*class=sma-latex-script.*>[^<>]*</script>";
+      var scriptMatches = new Regex(scriptQuery, RegexOptions.IgnoreCase).Matches(Selection);
 
       foreach (Match imgMatch in matches)
       {
@@ -319,6 +320,12 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
         if (latexCode.Success)
           ret.Add((html, latexCode.Groups[1].Value));
+      }
+
+      foreach (Match scriptMatch in scriptMatches)
+      {
+        var html = scriptMatch.Value;
+        ret.Add((html, ""));
       }
 
       return ret;
