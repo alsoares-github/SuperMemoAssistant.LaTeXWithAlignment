@@ -34,6 +34,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 {
   using System;
   using System.Collections.Generic;
+  using System.Globalization;
   using System.IO;
   using System.Linq;
   using System.Net;
@@ -115,7 +116,11 @@ namespace SuperMemoAssistant.Plugins.LaTeX
         File.Delete(LaTeXConst.Paths.TexErrorLog);
 
       // Build .tex file content and write it
-      latexContent = tag.LaTeXBegin + latexContent + tag.LaTeXEnd;
+    
+      //latexContent = tag.LaTeXBegin + latexContent + tag.LaTeXEnd;
+      latexContent = string.Format(CultureInfo.InvariantCulture,
+                                   tag.LaTeXBegin + tag.LaTeXEnd,
+                                   latexContent);
 
       File.WriteAllText(LaTeXConst.Paths.TempTexFilePath, latexContent);
 

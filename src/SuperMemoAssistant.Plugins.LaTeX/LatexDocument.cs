@@ -143,6 +143,29 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       return Html;
     }
 
+
+    private (double w, double h, double v) GetMetrics(string filePath)
+    {
+      var dimsFile = filePath.Replace("png", "dims");
+      if (!File.Exists(dimsFile))
+        throw new ArgumentException($"File \"{dimsFile}\" does not exist.");
+
+      var metrics = File.ReadAllText(dimsFile);
+
+      // Extract metrics using Regex
+      var v = new Regex(@"(?<=depth:\s*)\d*\.?\d*(?=pt)").Match(metrics).Value;
+      var h = new Regex(@"(?<=height:\s*)\d*\.?\d*(?=pt)").Match(metrics).Value;
+
+      //
+      var numberFormat = (System.Globalization.NumberFormatInfo) CultureInfo.InvariantCulture.NumberFormat.Clone();
+      numberFormat.NumberDecimalSeparator = ".";
+
+      double conv = 0.2554 / 1.1;
+      double depth = double.Parse(v, numberFormat);
+      double height = double.Parse(h, numberFormat);
+
+      return (0, (height + depth) * conv, depth * conv);
+    }
     private string GenerateImgHtml(string filePath,
                                    string latexCode)
     {
@@ -155,6 +178,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
         base64Img = fileStream.ToBase64();
 
       var size = GetImageSize(filePath);
+      (var w, var h, var v) = GetMetrics(filePath);
 
       // Hack: use this for image id
       //var id = base64Img.Substring(17, 10);
@@ -162,11 +186,12 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
       var imgTag = string.Format(CultureInfo.InvariantCulture,
                            Config.LaTeXImageTag,
-                           size.Width + "em",
-                           size.Height + "em",
+                           size.Width,
+                           h,
                            base64Img,
                            latexCode.ToBase64(),
-                           id);
+                           id,
+                           v);
 
       var scriptBase = @"<script type=""text/javascript"">
                         document.getElementById(""{0}"").src = ""data:image/png;base64,{1}""
