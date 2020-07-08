@@ -140,6 +140,18 @@ namespace SuperMemoAssistant.Plugins.LaTeX
                           newSelection);
       Selection = newSelection;
 
+      // Hack: move script tags to bottom of html
+      var scriptQuery = @"<script\s*class=sma-latex-script.*>[^<>]*</script>";
+      var scriptMatches = new Regex(scriptQuery, RegexOptions.IgnoreCase).Matches(Html);
+
+      foreach (Match scriptMatch in scriptMatches)
+      {
+        var html = scriptMatch.Value;
+        Html = Html.ReplaceFirst(html, "");
+        Html += html;
+      }
+
+
       return Html;
     }
 
