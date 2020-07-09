@@ -140,7 +140,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
       foreach (var tag in Tags.Values)
       {
-        string escaped = Regex.Escape(tag.TagBegin) + "(.+?)" + Regex.Escape(tag.TagEnd);
+        string escaped = Regex.Escape(tag.TagBegin) + "((?:[^\\$]|\\n)*)" + Regex.Escape(tag.TagEnd);
 
         ret[new Regex(escaped,
                       RegexOptions.Compiled | RegexOptions.IgnoreCase)] = tag;

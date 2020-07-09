@@ -102,11 +102,16 @@ namespace SuperMemoAssistant.Plugins.LaTeX
         f => (f.Value, f.Key.Matches(Selection))
       );
 
+      var allImagesData = GetAllImagesLaTeXCode();
+      int idx = allImagesData.Count;
+
       foreach (var taggedMatches in allTaggedMatches)
       {
+        idx++;
         var itemsOccurences = new Dictionary<string, int>();
         var processedMatches = GenerateImages(taggedMatches.Item1,
-                                              taggedMatches.Item2);
+                                              taggedMatches.Item2,
+                                              idx);
 
         foreach (var processedMatch in processedMatches)
         {
@@ -182,7 +187,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       return (0, (height + depth) * conv, (depth+0.1) * conv);
     }
     private string GenerateImgHtml(string filePath,
-                                   string latexCode)
+                                   string latexCode, int ord=0)
     {
       if (File.Exists(filePath) == false)
         throw new ArgumentException($"File \"{filePath}\" does not exist.");
@@ -195,7 +200,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       var size = GetImageSize(filePath);
       (var w, var h, var v) = GetMetrics(filePath);
 
-      var id = latexCode.ToBase64();
+      var id = "sma-img-" + ord.ToString();
 
       var imgTag = string.Format(CultureInfo.InvariantCulture,
                            Config.LaTeXImageTag,
@@ -206,7 +211,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
                            id,
                            v);
 
-      var scriptBase = @"<script class=sma-latex-script type=text/javascript>document.getElementById(""{0}"").src = ""data:image/png;base64,{1}""</script>";
+      var scriptBase = @"<script class=sma-latex-script type=text/javascript>x = document.getElementById(""{0}""); x.src = ""data:image/png;base64,"" + x.getAttribute(""data-latex-img"");</script>";
 
       var scriptTag = string.Format(CultureInfo.InvariantCulture,
                                     scriptBase,
@@ -272,12 +277,16 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
     private IEnumerable<(bool success, string imgHtmlOrError, string originalHtml)> GenerateImages(
       LaTeXTag        tag,
-      MatchCollection matches)
+      MatchCollection matches,
+      int ord=0)
     {
       List<(bool, string, string)> ret = new List<(bool, string, string)>();
 
+      int idx = 0;
+
       foreach (Match match in matches)
       {
+        idx++; 
         string originalHtml = match.Groups[0].Value;
         string latexCode    = match.Groups[1].Value;
 
@@ -304,7 +313,8 @@ namespace SuperMemoAssistant.Plugins.LaTeX
           }
 
           imgHtmlOrError = GenerateImgHtml(imgHtmlOrError,
-                                           tag.SurroundTexWith(latexCode));
+                                           tag.SurroundTexWith(latexCode),
+                                           100*ord+idx);
 
           ret.Add((success, imgHtmlOrError, originalHtml));
          
