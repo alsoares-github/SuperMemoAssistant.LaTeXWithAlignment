@@ -30,7 +30,10 @@
 
 
 
+using System.Collections.Generic;
+using System.Drawing;
 using System.Runtime.Remoting;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using Anotar.Serilog;
@@ -127,11 +130,56 @@ namespace SuperMemoAssistant.Plugins.LaTeX
           return;
 
         htmlDoc.Text = texDoc.ConvertLaTeXToImages();
+
+        ExecuteImgScripts();
       }
       catch (RemotingException ex)
       {
         LogTo.Warning(ex, "ConvertLaTeXToImage failed.");
       }
+    }
+
+    private void ExecuteImgScripts()
+    {
+      IControlHtml ctrlHtml = Svc.SM.UI.ElementWdw.ControlGroup.FocusedControl.AsHtml();
+      var html = ctrlHtml.Text;
+      var doc = ctrlHtml.GetDocument();
+
+      var query = @"id=(sma-img-\d+)\b+(?:.|\n)*?data-latex-img=""(.*?)""";
+      var matches = new Regex(query, RegexOptions.IgnoreCase).Matches(html);
+
+      var subs = new List<(string, string)>();
+
+      foreach (Match m in matches)
+      {
+        var id = m.Groups[1].Value;
+        var data = m.Groups[2].Value;
+
+        var script = string.Format(@"x = document.getElementById('{0}');
+                                     x.src = ""data:image/png;base64,{1};""",
+                                     id,
+                                     data);
+
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+          var window = doc.parentWindow;
+          window.execScript(script);
+        });
+      }
+
+      
+      /*
+      Application.Current.Dispatcher.Invoke(() =>
+      {
+        var window = doc.parentWindow;
+        var script = string.Format(@"x = document.getElementById('{0}');
+                                     x.src = ""data:image/png;base64,{1};""",
+                                     id,
+                                     data);
+        window.execScript(script);
+       });
+        */
+    
     }
 
     private void ConvertImageToLaTeX()
