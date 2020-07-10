@@ -96,6 +96,12 @@ namespace SuperMemoAssistant.Plugins.LaTeX
     {
       string newSelection = LaTeXConst.RE.LaTeXError.Replace(Selection,
                                                              string.Empty);
+      // Remove Bottom reference section and keep it to add later
+      var refQuery = @"<hr supermemo>(.|\n)*</h5>";
+      var refMatch = new Regex(refQuery, RegexOptions.IgnoreCase).Match(newSelection).Value;
+      newSelection = newSelection.ReplaceFirst(refMatch, "");
+
+
       var filters = Config.Filters;
 
       var allTaggedMatches = filters.Select(
@@ -153,6 +159,9 @@ namespace SuperMemoAssistant.Plugins.LaTeX
         newSelection = newSelection.ReplaceFirst(html, "");
         newSelection += html;
       }
+
+      // Restore references
+      newSelection += refMatch;
 
       Html = Html.Replace(Selection,
                           newSelection);
