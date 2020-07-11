@@ -40,12 +40,13 @@ namespace SuperMemoAssistant.Plugins.LaTeX
   using System.Net;
   using System.Web;
   using Anotar.Serilog;
+  using SuperMemoAssistant.Services;
   using Extensions;
+  using SuperMemoAssistant.Sys.Drawing;
 
   public static class LaTeXUtils
   {
     #region Methods
-
     public static string TextToHtml(string text)
     {
       text = HttpUtility.HtmlEncode(text);
@@ -55,6 +56,28 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       text = text.Replace("  ", " &nbsp;");
 
       return text;
+    }
+
+    public static int AddImageToRegistry(string path, string name)
+    {
+      try
+      {
+        System.Drawing.Image img = System.Drawing.Image.FromFile(path);
+
+        var idx = Svc.SM.Registry.Image.Add(
+                      new ImageWrapper(img),
+                      name);
+
+        img.Dispose();
+
+        return idx;
+      }
+      catch (Exception ex)
+      {
+        LogTo.Warning(ex, "Could not find file.");
+      }
+
+      return -1;
     }
 
     public static string PlainText(string html)

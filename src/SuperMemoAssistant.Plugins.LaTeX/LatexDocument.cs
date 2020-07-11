@@ -38,6 +38,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Microsoft.Win32;
 using Newtonsoft.Json.Converters;
 using SuperMemoAssistant.Extensions;
 using SuperMemoAssistant.Services;
@@ -96,11 +97,6 @@ namespace SuperMemoAssistant.Plugins.LaTeX
     {
       string newSelection = LaTeXConst.RE.LaTeXError.Replace(Selection,
                                                              string.Empty);
-      // Remove Bottom reference section and keep it to add later
-      var refQuery = @"<hr supermemo>(.|\n)*</h5>";
-      var refMatch = new Regex(refQuery, RegexOptions.IgnoreCase).Match(newSelection).Value;
-      newSelection = newSelection.ReplaceFirst(refMatch, "");
-
 
       var filters = Config.Filters;
 
@@ -108,16 +104,11 @@ namespace SuperMemoAssistant.Plugins.LaTeX
         f => (f.Value, f.Key.Matches(Selection))
       );
 
-      var allImagesData = GetAllImagesLaTeXCode();
-      int idx = allImagesData.Count;
-
       foreach (var taggedMatches in allTaggedMatches)
       {
-        idx++;
         var itemsOccurences = new Dictionary<string, int>();
         var processedMatches = GenerateImages(taggedMatches.Item1,
-                                              taggedMatches.Item2,
-                                              idx);
+                                              taggedMatches.Item2);
 
         foreach (var processedMatch in processedMatches)
         {
@@ -146,22 +137,6 @@ namespace SuperMemoAssistant.Plugins.LaTeX
                                                    nb);
         }
       }
-
-      
-
-      // Hack: move script tags to bottom of html
-      var scriptQuery = @"<script\s*class=sma-latex-script[^<>]*>[^<>]*</script>";
-      var scriptMatches = new Regex(scriptQuery, RegexOptions.IgnoreCase).Matches(newSelection);
-
-      foreach (Match scriptMatch in scriptMatches)
-      {
-        var html = scriptMatch.Value;
-        newSelection = newSelection.ReplaceFirst(html, "");
-        newSelection += html;
-      }
-
-      // Restore references
-      newSelection += refMatch;
 
       Html = Html.Replace(Selection,
                           newSelection);
@@ -197,38 +172,41 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       return (0, (height + depth) * conv, (depth+0.1) * conv);
     }
     private string GenerateImgHtml(string filePath,
-                                   string latexCode, int ord=0)
+                                   string latexCode)
     {
       if (File.Exists(filePath) == false)
         throw new ArgumentException($"File \"{filePath}\" does not exist.");
 
-      string base64Img;
+      var code = latexCode.ToBase64();
 
-      using (var fileStream = File.OpenRead(filePath))
-        base64Img = fileStream.ToBase64();
+      var res = Svc.SM.Registry.Image.FirstOrDefaultByName(code);
 
-      var size = GetImageSize(filePath);
+      int idx = -1;
+      string registryImgPath = "";
+
+      if (res == null)
+      {
+        idx = LaTeXUtils.AddImageToRegistry(filePath, latexCode.ToBase64());
+        registryImgPath = Svc.SM.Registry.Image[idx].GetFilePath();
+      }
+      else
+      {
+        registryImgPath = res.GetFilePath();
+        File.Copy(filePath, registryImgPath, true);
+      }
+
       (var w, var h, var v) = GetMetrics(filePath);
-
-      var id = "sma-img-" + ord.ToString();
 
       var imgTag = string.Format(CultureInfo.InvariantCulture,
                            Config.LaTeXImageTag,
-                           size.Width,
+                           0,
                            h,
-                           base64Img,
+                           registryImgPath,
                            latexCode.ToBase64(),
-                           id,
+                           "",
                            v);
 
-      var scriptBase = @"<script class=sma-latex-script type=text/javascript>x = document.getElementById(""{0}""); x.src = ""data:image/png;base64,"" + x.getAttribute(""data-latex-img"");</script>";
-
-      var scriptTag = string.Format(CultureInfo.InvariantCulture,
-                                    scriptBase,
-                                    id,
-                                    base64Img);
-
-      return imgTag + scriptTag;
+      return imgTag;
     }
 
     private Size GetImageSize(string filePath)
@@ -287,16 +265,12 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
     private IEnumerable<(bool success, string imgHtmlOrError, string originalHtml)> GenerateImages(
       LaTeXTag        tag,
-      MatchCollection matches,
-      int ord=0)
+      MatchCollection matches)
     {
       List<(bool, string, string)> ret = new List<(bool, string, string)>();
 
-      int idx = 0;
-
       foreach (Match match in matches)
       {
-        idx++; 
         string originalHtml = match.Groups[0].Value;
         string latexCode    = match.Groups[1].Value;
 
@@ -323,8 +297,7 @@ namespace SuperMemoAssistant.Plugins.LaTeX
           }
 
           imgHtmlOrError = GenerateImgHtml(imgHtmlOrError,
-                                           tag.SurroundTexWith(latexCode),
-                                           100*ord+idx);
+                                           tag.SurroundTexWith(latexCode));
 
           ret.Add((success, imgHtmlOrError, originalHtml));
          
@@ -338,13 +311,11 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       return ret;
     }
 
-    private HashSet<(string html, string latex)> GetAllImagesLaTeXCode()
+    private List<(string html, string latex)> GetAllImagesLaTeXCode()
     {
-      HashSet<(string, string)> ret     = new HashSet<(string, string)>();
+      List<(string, string)> ret     = new List<(string, string)>();
       var                       matches = LaTeXConst.RE.LaTeXImage.Matches(Selection);
-      var scriptQuery = @"<script\s*class=sma-latex-script.*>[^<>]*</script>";
-      var scriptMatches = new Regex(scriptQuery, RegexOptions.IgnoreCase).Matches(Selection);
-
+      
       foreach (Match imgMatch in matches)
       {
         var html      = imgMatch.Groups[0].Value;
@@ -352,12 +323,6 @@ namespace SuperMemoAssistant.Plugins.LaTeX
 
         if (latexCode.Success)
           ret.Add((html, latexCode.Groups[1].Value));
-      }
-
-      foreach (Match scriptMatch in scriptMatches)
-      {
-        var html = scriptMatch.Value;
-        ret.Add((html, ""));
       }
 
       return ret;
