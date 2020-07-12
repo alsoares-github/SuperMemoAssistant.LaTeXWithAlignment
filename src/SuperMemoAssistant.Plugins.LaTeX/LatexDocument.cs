@@ -83,9 +83,16 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       var allImagesData = GetAllImagesLaTeXCode();
 
       foreach (var (html, latex) in allImagesData)
+      {
+        // Escape <, > and & before replacing in HTML
+        var latexCode = latex.FromBase64()
+                             .Replace("&", " &amp; ")
+                             .Replace("<", " &lt; ")
+                             .Replace(">", " &gt; ");
+                             
         newSelection = newSelection.ReplaceFirst(html,
-                                                 latex.FromBase64());
-
+                                                 latexCode);
+      }
       Html = Html.Replace(Selection,
                           newSelection);
       Selection = newSelection;
