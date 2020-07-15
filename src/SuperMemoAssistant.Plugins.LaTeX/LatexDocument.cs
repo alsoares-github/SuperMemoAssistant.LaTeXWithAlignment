@@ -168,14 +168,14 @@ namespace SuperMemoAssistant.Plugins.LaTeX
       var numberFormat = (System.Globalization.NumberFormatInfo) CultureInfo.InvariantCulture.NumberFormat.Clone();
       numberFormat.NumberDecimalSeparator = ".";
 
-      double cmrFactor = 2.1 / 2.32;
+      double cmrFactor = 2.0 / 2.32;
       double mtpro2Factor = 2.0 / 2.32;
 
-      double conv = 0.2554 / 1.1 * mtpro2Factor;
+      double conv = 0.2554 / 1.1 * cmrFactor;
       double depth = double.Parse(v, numberFormat);
       double height = double.Parse(h, numberFormat);
 
-      return (0, (height + depth) * conv, (depth+0.1) * conv);
+      return (0, (height + depth) * conv, (depth) * conv);
     }
     private string GenerateImgHtml(string filePath,
                                    string latexCode)

@@ -139,8 +139,6 @@ namespace SuperMemoAssistant.Plugins.LaTeX
         File.Delete(LaTeXConst.Paths.TexErrorLog);
 
       // Build .tex file content and write it
-    
-      //latexContent = tag.LaTeXBegin + latexContent + tag.LaTeXEnd;
       latexContent = string.Format(CultureInfo.InvariantCulture,
                                    tag.LaTeXBegin + tag.LaTeXEnd,
                                    latexContent);
